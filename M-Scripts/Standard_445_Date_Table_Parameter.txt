@@ -1,0 +1,59 @@
+let fn445Fiscal04AprilFYDateTable = (StartDate as date, EndDate as date) as table =>
+let
+    DayCount = Duration.Days(Duration.From(EndDate - StartDate)), 
+    Source = List.Dates(StartDate,DayCount,#duration(1,0,0,0)), 
+    TableFromList = Table.FromList(Source, Splitter.SplitByNothing()),    
+    ChangedType = Table.TransformColumnTypes(TableFromList,{{"Column1", type date}}), 
+    RenamedColumns = Table.RenameColumns(ChangedType,{{"Column1", "Date"}}), 
+    InsertDayName = Table.AddColumn(RenamedColumns, "DayOfWeekName", each Date.ToText([Date], "dddd"), type text), 
+    InsertDayWeek = Table.AddColumn(InsertDayName, "DayInWeek", each Date.DayOfWeek([Date],0)+1), 
+    InsertWeekEnding = Table.AddColumn(InsertDayWeek, "WeekEndingSaturday", each Date.EndOfWeek([Date],0), type date),    
+    InsertCurrentSunday = Table.AddColumn(InsertWeekEnding, "CurrentSunday", each Date.AddDays([Date], -Date.DayOfWeek([Date],0)), type date),
+    DateOffset = Table.AddColumn(InsertCurrentSunday, "Offset", each Date.FromText(Number.ToText(Date.Year([CurrentSunday])) & "-04-04") - [CurrentSunday]),
+    #"Changed Type" = Table.TransformColumnTypes(DateOffset,{{"Offset", Int64.Type}}),
+    InsertISOWeekApr1 = Table.AddColumn(#"Changed Type", "ISOWeekApr1", each if [Offset] > 6 then Date.FromText(Number.ToText(Date.Year([CurrentSunday])-1) & "-04-04") else Date.FromText(Number.ToText(Date.Year([CurrentSunday])) & "-04-04"),type date),
+    InsertISOWeekYear = Table.AddColumn(InsertISOWeekApr1, "ISOWeekYear", each Date.Year([ISOWeekApr1])),
+    InsertISOWeekFirstSun = Table.AddColumn(InsertISOWeekYear, "ISOWeekFirstSun", each if [CurrentSunday] < [ISOWeekApr1] 
+        then Date.AddDays([CurrentSunday],0) 
+        else Date.AddDays([ISOWeekApr1], - Date.DayOfWeek([ISOWeekApr1],0) ), type date),
+    InsertFYWeekNum = Table.AddColumn(InsertISOWeekFirstSun, "ISOWeekNum", each Number.RoundUp(((Duration.Days(Duration.From([Date] - [ISOWeekFirstSun]))+1) /7 )), type number),
+     FiscalYear = Table.AddColumn(InsertFYWeekNum, "FY", each [ISOWeekYear]+1),
+    InsertFYWeekID = Table.AddColumn(FiscalYear, "ISOWeekID", each [FY] * 100 + [ISOWeekNum], type number), 
+    InsertIFYWeekNameLong = Table.AddColumn(InsertFYWeekID, "ISOWeekNameLong", each Text.From([FY]) & "-W" & Text.End( "0" & Text.From([ISOWeekNum]),2) & "-" & Date.ToText([Date],"ddd")),
+    #"Renamed Columns" = Table.RenameColumns(InsertIFYWeekNameLong,{{"ISOWeekNameLong", "FYWeekNameLong"}, {"ISOWeekID", "FYWeekID"}, {"ISOWeekNum", "FYWeekNum"}, {"ISOWeekFirstSun", "FYWeekFirstSun"}}),
+    #"FY Quarter" = Table.AddColumn(#"Renamed Columns", "FY Quarter", each if [FYWeekNum] <= 13 then 1 else if [FYWeekNum] >= 14 and [FYWeekNum] <= 26 then 2 else if [FYWeekNum] >= 27 and [FYWeekNum] <= 39 then 3 else 4),
+    #"Week of FY Quarter" = Table.AddColumn(#"FY Quarter", "Week of Quarter", each if [FYWeekNum] <> 53 then ([FYWeekNum] - (Number.RoundUp([FYWeekNum]/13)-1) * 13) else 14),
+    #"Quarter Week ID" = Table.AddColumn(#"Week of FY Quarter", "QtrWeekID", each [FY Quarter]*100+[Week of Quarter]),
+    #"FY Quarter ID" = Table.AddColumn(#"Quarter Week ID", "FYQtrID", each [FY]*100+[FY Quarter]),
+    #"Changed Type1" = Table.TransformColumnTypes(#"FY Quarter ID",{{"FY Quarter", Int64.Type}, {"Week of Quarter", Int64.Type}, {"QtrWeekID", Int64.Type}, {"FYQtrID", Int64.Type}}),
+
+    fnPeriod454a = (weekNum) => let 
+      Periods = 
+        { 
+            {(x)=>x<5,  [P=1, M="Apr"]}, 
+      {(x)=>x<10,  [P=2, M="May"]}, 
+      {(x)=>x<14, [P=3, M="Jun"]}, 
+      {(x)=>x<18, [P=4, M="Jul"]}, 
+      {(x)=>x<23, [P=5, M="Aug"]}, 
+      {(x)=>x<27, [P=6, M="Sep"]}, 
+      {(x)=>x<31, [P=7, M="Oct"]}, 
+      {(x)=>x<36, [P=8, M="Nov"]}, 
+      {(x)=>x<40, [P=9, M="Dec"]}, 
+            {(x)=>x<44, [P=10, M="Jan"]}, 
+            {(x)=>x<49, [P=11, M="Feb"]}, 
+            {(x)=>true, [P=12, M="Mar"]} 
+        }, 
+      Result = List.First(List.Select(Periods, each _{0}(weekNum))){1} 
+    in 
+      Result,
+
+    InsertPeriod454 = Table.AddColumn(#"Changed Type1", "Period454Record", each fnPeriod454a([FYWeekNum])),
+    #"Expanded Period454Record" = Table.ExpandRecordColumn(InsertPeriod454, "Period454Record", {"M", "P"}, {"M", "P"}),
+    #"Renamed Columns1" = Table.RenameColumns(#"Expanded Period454Record",{{"M", "FY Month Name"}, {"P", "FY Month ID"}}),
+    #"Removed Columns" = Table.RemoveColumns(#"Renamed Columns1",{"CurrentSunday", "Offset", "ISOWeekApr1", "ISOWeekYear", "FYWeekFirstSun"})
+   
+in
+    #"Removed Columns"
+
+in
+    fn445Fiscal04AprilFYDateTable
