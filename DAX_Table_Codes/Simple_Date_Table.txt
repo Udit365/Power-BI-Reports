@@ -1,0 +1,28 @@
+Dates = 
+VAR FirstOrderDate =
+    MIN ( Sales[OrderDate] )
+VAR FirstOrderYear =
+    YEAR ( FirstOrderDate )
+VAR DateRange =
+    FILTER ( CALENDARAUTO (), YEAR ( [Date] ) >= FirstOrderYear )
+VAR FYStartMonth = 4
+RETURN
+    ADDCOLUMNS (
+        DateRange,
+        "Year", YEAR ( [Date] ),
+        "QuarterNumber", QUARTER ( [Date] ),
+        "Quarter", FORMAT ( [Date], "\QQ" ),
+        "MonthNumber", MONTH ( [Date] ),
+        "Full Month Name", FORMAT ( [Date], "mmmm" ),
+        "Month", FORMAT ( [Date], "mmm" ),
+        "Quarter-YearSort", CONVERT(FORMAT ( [Date], "yyyy0Q" ),INTEGER),
+        "Quarter-Year", FORMAT ( [Date], "\QQ yyyy" ),
+        "Month-YearSort", CONVERT(FORMAT ( [Date], "yyyy0m" ),INTEGER),
+        "Month-Year", FORMAT ( [Date], "mmm yyyy" ),
+        "FY", IF (
+            MONTH ( [Date] ) >= FYStartMonth,
+            "FY"
+                & RIGHT ( YEAR ( [Date] ) + 1, 2 ),
+            "FY" & RIGHT ( YEAR ( [Date] ), 2 )
+        )
+    )
