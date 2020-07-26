@@ -1,4 +1,4 @@
-Dates = 
+Dates =
 VAR FirstOrderDate =
     MIN ( Sales[OrderDate] )
 VAR FirstOrderYear =
@@ -15,9 +15,13 @@ RETURN
         "MonthNumber", MONTH ( [Date] ),
         "Full Month Name", FORMAT ( [Date], "mmmm" ),
         "Month", FORMAT ( [Date], "mmm" ),
-        "Quarter-YearSort", CONVERT(FORMAT ( [Date], "yyyy0Q" ),INTEGER),
+        "Quarter-YearSort", CONVERT ( FORMAT ( [Date], "yyyy0Q" ), INTEGER ),
         "Quarter-Year", FORMAT ( [Date], "\QQ yyyy" ),
-        "Month-YearSort", CONVERT(FORMAT ( [Date], "yyyy0m" ),INTEGER),
+        "Month-YearSort", IF (
+            MONTH ( [Date] ) <= 9,
+            CONVERT ( FORMAT ( [Date], "yyyy0m" ), INTEGER ),
+            CONVERT ( FORMAT ( [Date], "yyyym" ), INTEGER )
+        ),
         "Month-Year", FORMAT ( [Date], "mmm yyyy" ),
         "FY", IF (
             MONTH ( [Date] ) >= FYStartMonth,
