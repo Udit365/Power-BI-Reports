@@ -17,10 +17,11 @@ let
     #"Renamed Columns1" = Table.RenameColumns(#"Inserted Merged Column2",{{"Quarter", "QuarterNumber"}, {"Month", "MonthNumber"}, {"Month Name", "Long Month Name"}, {"First Characters", "Month"}, {"Merged", "Quarter"}, {"Merged.1", "Month-Year"}, {"Merged.2", "Quarter-Year"}}),
     #"Added Custom" = Table.AddColumn(#"Renamed Columns1", "Month-YearSort", each if [MonthNumber] <= 9 then 
 Number.ToText([Year])&"0"&Number.ToText([MonthNumber]) else
-Number.ToText([Year])&Number.ToText([MonthNumber]), Int64.Type),
-    #"Added Custom1" = Table.AddColumn(#"Added Custom", "Quarter-YearSort", each Number.ToText([Year])&"0"&Number.ToText([QuarterNumber]), Int64.Type),
-    #"Reordered Columns" = Table.ReorderColumns(#"Added Custom1",{"Date", "Year", "QuarterNumber", "MonthNumber", "Long Month Name", "Month", "Quarter", "Month-Year", "Month-YearSort", "Quarter-Year", "Quarter-YearSort"})
+Number.ToText([Year])&Number.ToText([MonthNumber])),
+    #"Added Custom1" = Table.AddColumn(#"Added Custom", "Quarter-YearSort", each Number.ToText([Year])&"0"&Number.ToText([QuarterNumber])),
+    #"Reordered Columns" = Table.ReorderColumns(#"Added Custom1",{"Date", "Year", "QuarterNumber", "MonthNumber", "Long Month Name", "Month", "Quarter", "Month-Year", "Month-YearSort", "Quarter-Year", "Quarter-YearSort"}),
+    #"Changed Type 2" = Table.TransformColumnTypes(#"Reordered Columns",{{"Month-YearSort", Int64.Type}, {"Quarter-YearSort", Int64.Type}})
 in
-    #"Reordered Columns"
+    #"Changed Type 2"
 in
     CalendarTable
