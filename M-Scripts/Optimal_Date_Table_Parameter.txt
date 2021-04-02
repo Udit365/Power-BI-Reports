@@ -1,22 +1,26 @@
-let CreateDateTable = (StartDate as date, EndDate as date, optional Culture as nullable text) as table =>
-  let
-    DayCount = Duration.Days(Duration.From(EndDate - StartDate)),
-    Source = List.Dates(StartDate,DayCount,#duration(1,0,0,0)),
-    TableFromList = Table.FromList(Source, Splitter.SplitByNothing()),
-    ChangedType = Table.TransformColumnTypes(TableFromList,{{"Column1", type date}}),
-    RenamedColumns = Table.RenameColumns(ChangedType,{{"Column1", "Date"}}),
-    InsertYear = Table.AddColumn(RenamedColumns, "Year", each Date.Year([Date])),
-    InsertQuarter = Table.AddColumn(InsertYear, "QuarterOfYear", each Date.QuarterOfYear([Date])),
-    InsertMonth = Table.AddColumn(InsertQuarter, "MonthOfYear", each Date.Month([Date])),
-    InsertDay = Table.AddColumn(InsertMonth, "DayOfMonth", each Date.Day([Date])),
-    InsertDayInt = Table.AddColumn(InsertDay, "DateInt", each [Year] * 10000 + [MonthOfYear] * 100 + [DayOfMonth]),
-    InsertMonthName = Table.AddColumn(InsertDayInt, "MonthName", each Date.ToText([Date], "MMMM", Culture), type text),
-    InsertCalendarMonth = Table.AddColumn(InsertMonthName, "MonthInCalendar", each (try(Text.Range([MonthName],0,3)) otherwise [MonthName]) & " " & Number.ToText([Year])),
-    InsertCalendarQtr = Table.AddColumn(InsertCalendarMonth, "QuarterInCalendar", each "Q" & Number.ToText([QuarterOfYear]) & " " & Number.ToText([Year])),
-    InsertDayWeek = Table.AddColumn(InsertCalendarQtr, "DayInWeek", each Date.DayOfWeek([Date])),
-    InsertDayName = Table.AddColumn(InsertDayWeek, "DayOfWeekName", each Date.ToText([Date], "dddd", Culture), type text),
-    InsertWeekEnding = Table.AddColumn(InsertDayName, "WeekEnding", each Date.EndOfWeek([Date]), type date)
-  in
-    InsertWeekEnding
+let
+    CalendarTable = (StartDate as date, EndDate as date) as table =>
+let
+    DaysInterval = Duration.Days(EndDate - StartDate),
+    DatesList = List.Dates (StartDate, DaysInterval, #duration(1,0,0,0)),
+    #"Converted to Table" = Table.FromList(DatesList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Changed Type" = Table.TransformColumnTypes(#"Converted to Table",{{"Column1", type date}}),
+    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Column1", "Date"}}),
+    #"Inserted Year" = Table.AddColumn(#"Renamed Columns", "Year", each Date.Year([Date]), Int64.Type),
+    #"Inserted Quarter" = Table.AddColumn(#"Inserted Year", "Quarter", each Date.QuarterOfYear([Date]), Int64.Type),
+    #"Inserted Month" = Table.AddColumn(#"Inserted Quarter", "Month", each Date.Month([Date]), Int64.Type),
+    #"Inserted Month Name" = Table.AddColumn(#"Inserted Month", "Month Name", each Date.MonthName([Date]), type text),
+    #"Inserted First Characters" = Table.AddColumn(#"Inserted Month Name", "First Characters", each Text.Start([Month Name], 3), type text),
+    #"Inserted Merged Column" = Table.AddColumn(#"Inserted First Characters", "Merged", each Text.Combine({"Q", Text.From([Quarter], "en-IN")}), type text),
+    #"Inserted Merged Column1" = Table.AddColumn(#"Inserted Merged Column", "Merged.1", each Text.Combine({[First Characters], "-", Text.From([Year], "en-IN")}), type text),
+    #"Inserted Merged Column2" = Table.AddColumn(#"Inserted Merged Column1", "Merged.2", each Text.Combine({[Merged], "-", Text.From([Year], "en-IN")}), type text),
+    #"Renamed Columns1" = Table.RenameColumns(#"Inserted Merged Column2",{{"Quarter", "QuarterNumber"}, {"Month", "MonthNumber"}, {"Month Name", "Long Month Name"}, {"First Characters", "Month"}, {"Merged", "Quarter"}, {"Merged.1", "Month-Year"}, {"Merged.2", "Quarter-Year"}}),
+    #"Added Custom" = Table.AddColumn(#"Renamed Columns1", "Month-YearSort", each if [MonthNumber] <= 9 then 
+Number.ToText([Year])&"0"&Number.ToText([MonthNumber]) else
+Number.ToText([Year])&Number.ToText([MonthNumber]), Int64.Type),
+    #"Added Custom1" = Table.AddColumn(#"Added Custom", "Quarter-YearSort", each Number.ToText([Year])&"0"&Number.ToText([QuarterNumber]), Int64.Type),
+    #"Reordered Columns" = Table.ReorderColumns(#"Added Custom1",{"Date", "Year", "QuarterNumber", "MonthNumber", "Long Month Name", "Month", "Quarter", "Month-Year", "Month-YearSort", "Quarter-Year", "Quarter-YearSort"})
 in
-  CreateDateTable
+    #"Reordered Columns"
+in
+    CalendarTable
