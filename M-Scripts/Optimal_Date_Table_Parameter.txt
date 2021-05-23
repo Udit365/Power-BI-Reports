@@ -1,8 +1,9 @@
 let
     CalendarTable = (StartDate as date, EndDate as date) as table =>
 let
-    DaysInterval = Duration.Days(EndDate - StartDate),
-    DatesList = Duration.Days(Duration.From(EndDate - StartDate))+1,
+    DurationCount = Duration.From(EndDate - StartDate),
+    DaysCount = Duration.Days(DurationCount)+1,
+    DatesList = List.Dates(StartDate,DaysCount,#duration(1,0,0,0)),
     #"Converted to Table" = Table.FromList(DatesList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
     #"Changed Type" = Table.TransformColumnTypes(#"Converted to Table",{{"Column1", type date}}),
     #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Column1", "Date"}}),
